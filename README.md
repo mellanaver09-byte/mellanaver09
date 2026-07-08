@@ -10,7 +10,7 @@ soil property prediction using terrain-derived features.
 
 ## Projects
 
-###  [Spring Acidification Regression Model](./spring-acidification)
+###  [Spring Acidification Regression Model](./spring_acidification)
 Built a regression model on Florida spring water quality data to identify 
 key environmental drivers of acidification trends.
 **Tech:** Python, pandas, scikit-learn
