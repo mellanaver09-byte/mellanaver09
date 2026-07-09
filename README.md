@@ -2,7 +2,7 @@
 
 # Environmental Data Science Portfolio
 
-Mel Lanaver | M.S. Environmental Data Analytics | [LinkedIn](www.linkedin.com/in/mel-lanaver) 
+Mel Lanaver | M.S. Environmental Data Analytics | [LinkedIn](https://www.linkedin.com/in/mel-lanaver) 
 
 Applied machine learning and geospatial analysis projects focused on 
 environmental and climate data — spanning water quality modeling and 
@@ -29,4 +29,4 @@ covariates (slope, aspect, TWI).
 - Python, R, ArcGIS
 
 ## Contact
-📧 mel.lanaver23@gmail.com | 🔗 [LinkedIn](www.linkedin.com/in/mel-lanaver)
+📧 mel.lanaver23@gmail.com | 🔗 [LinkedIn](https://www.linkedin.com/in/mel-lanaver)
