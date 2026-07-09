@@ -1,0 +1,116 @@
+library(terra)
+
+#Load rasters
+dem_rast <- rast("C:/Users/mella/OneDrive/Desktop/Master's/ESCI 601-01/DEM (2).tif")
+som_map <- rast("SOM_IDW_map.tif")
+
+#Copy DEM structure exactly, then fill with SOM values
+som_perfect <- rast(dem_rast)  # Inherits CRS, resolution, extent EXACTLY
+values(som_perfect) <- NA
+
+#Transfer SOM values using nearest neighbor (preserves SOM values)
+som_perfect <- resample(som_map, som_perfect, method="near")
+
+#Check - True
+print("CRS match:")
+print(crs(som_perfect) == crs(dem_rast))
+print("Resolution match:")
+print(res(som_perfect) == res(dem_rast))
+print("Geometry match:")
+print(compareGeom(som_perfect, dem_rast, res=TRUE))
+
+#Plot confirmation
+plot(dem_rast, col=terrain.colors(100), main="PERFECTLY ALIGNED")
+plot(som_perfect, add=TRUE, col=hcl.colors(100,"Inferno"), alpha=0.6)
+
+#Save final aligned version
+writeRaster(som_perfect, "SOM_perfectly_aligned.tif", overwrite=TRUE)
+
+#Load aligned raster
+som_aligned <- rast('SOM_perfectly_aligned.tif')
+
+#Pixel-wise correlation
+dem_vals <- values(dem_rast, na.rm=FALSE)
+som_vals <- values(som_aligned, na.rm=FALSE)
+cor_val <- cor(dem_vals, som_vals, use="complete.obs")
+print(paste("DEM-SOM correlation:", round(cor_val, 3)))
+
+#SOM categories
+som_numeric <- values(som_aligned, na.rm=TRUE)
+breaks <- quantile(som_numeric, probs=c(0, 0.33, 0.66, 1), na.rm=TRUE)
+print("SOM quantiles:")
+print(breaks)
+
+#Apply categories to raster
+som_cats <- classify(som_aligned, 
+                     matrix(c(-Inf, breaks[2], 1,
+                              breaks[2], breaks[3], 2,
+                              breaks[3], Inf, 3), ncol=3, byrow=TRUE))
+
+#Plot change detection maps
+par(mfrow=c(2,2))
+
+plot(som_cats, 
+     col=hcl.colors(3,"Dark3"),
+     main="SOM Categories\n(Low/Med/High)",
+     cex.main = 0.9,
+     xlab = 'Easting',
+     ylab = 'Northing')
+
+#Difference from mean
+som_mean <- mean(som_numeric)
+som_dev <- som_aligned - som_mean
+plot(som_dev, 
+     col=hcl.colors(100,"RdBu", rev=TRUE),
+     main=paste("SOM Deviation from Mean (",round(som_mean,2),"%)"),
+                xlab = 'Easting',
+                ylab = 'Northing')
+
+#DEM colored by SOM
+plot(dem_rast, col=terrain.colors(100))
+plot(som_cats, add=TRUE, col=hcl.colors(3,"Dark3", alpha=0.6), legend=FALSE, xlab = 'Easting', ylab = 'Northing')
+
+#Save combined figure
+png("change_detection.png", width=1200, height=1000, res=150)
+par(mfrow=c(2,2))
+plot(som_cats, col=hcl.colors(3,"Dark3"), main="SOM Categories")
+plot(som_dev, col=hcl.colors(100,"RdBu", rev=TRUE), main=paste("SOM Deviation\nMean:",round(som_mean,2)))
+plot(dem_rast, col=terrain.colors(100), main="DEM Background")
+plot(som_cats, add=TRUE, col=hcl.colors(3,"Dark3", alpha=0.6), legend=FALSE)
+dev.off()
+
+#Get SOM statistics
+som_vals <- values(som_aligned, na.rm=TRUE)
+som_mean <- mean(som_vals)
+som_sd <- sd(som_vals)
+breaks <- quantile(som_vals, probs=c(0, 0.33, 0.66, 1), na.rm=TRUE)
+
+print(paste("SOM Mean:", round(som_mean,2), "%"))
+print(paste("SOM SD:", round(som_sd,2), "%"))
+print("Class breaks:")
+print(breaks)
+
+#Create class raster (Low/Medium/High SOM)
+som_cats <- classify(som_aligned, 
+                     matrix(c(-Inf, breaks[2], 1,    # Low SOM
+                              breaks[2], breaks[3], 2,  # Medium SOM  
+                              breaks[3], Inf, 3),      # High SOM
+                            ncol=3, byrow=TRUE))
+
+#Calculate pixel counts and area by class
+class_freq <- freq(som_cats)
+total_pixels <- ncell(som_aligned)
+total_area <- prod(res(som_aligned)) * total_pixels / 10000  # hectares
+
+print("Class areas (hectares):")
+class_freq$area_ha <- (class_freq$count / total_pixels) * total_area
+print(class_freq)
+
+#Change zones (deviation from mean)
+change_map <- som_aligned - som_mean
+change_cats <- classify(change_map,
+                        matrix(c(-Inf, -som_sd, -1,     
+                                 -som_sd, 0, 0,             
+                                 0, som_sd, 1,            
+                                 som_sd, Inf, 2),         
+                               ncol=3, byrow=TRUE))
